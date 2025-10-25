@@ -6,7 +6,6 @@ from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 router = APIRouter()
 

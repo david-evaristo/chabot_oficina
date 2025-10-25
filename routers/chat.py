@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 router = APIRouter()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class ChatMessage(BaseModel):
     message: str
@@ -62,16 +62,20 @@ class ChatResponse(BaseModel):
 @router.post("/api/chat", response_model=ChatResponse)
 async def chat_api(chat_message: ChatMessage, db: AsyncSession = Depends(get_db)):
     message = chat_message.message
+    logging.debug(f"Received raw chat message: {chat_message.model_dump_json()}")
     logging.info(f"Received chat API request with message: {message}")
 
     if not message:
         logging.warning("Received empty message in chat API request.")
+        logging.debug("Raising HTTPException for empty message.")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mensagem vazia")
 
     gemini_response, error = await process_user_message(message)
+    logging.debug(f"Gemini API raw response: {json.dumps(gemini_response)}")
 
     if error:
         logging.error(f"Gemini API error: {error}")
+        logging.debug(f"Raising HTTPException for Gemini API error: {error}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error)
 
     try:
@@ -81,6 +85,7 @@ async def chat_api(chat_message: ChatMessage, db: AsyncSession = Depends(get_db)
         if intent == 'create_service':
             data = gemini_response.get('data')
             if not data:
+                logging.debug("Raising HTTPException for missing data in create_service intent.")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail={'error': 'Dados ausentes para criação de serviço.'}
@@ -99,10 +104,12 @@ async def chat_api(chat_message: ChatMessage, db: AsyncSession = Depends(get_db)
 
             if not client_name or not car_brand or not car_model or not service_description:
                 logging.warning(f"Insufficient information for service creation: {data}")
-                return ChatResponse(
+                response = ChatResponse(
                     success=False,
                     message="Por favor, forneça nome do cliente, marca, modelo do carro e descrição do serviço."
                 )
+                logging.debug(f"Returning chat response: {response.model_dump_json()}")
+                return response
 
             # 1. Handle Client
             client = None
@@ -175,17 +182,20 @@ async def chat_api(chat_message: ChatMessage, db: AsyncSession = Depends(get_db)
             await db.refresh(record)
             logging.info(f"Successfully added new service record: {record.to_dict()}")
 
-            return ChatResponse(
+            response = ChatResponse(
                 success=True,
                 client_data=ClientDataResponse.model_validate(client),
                 car_data=CarDataResponse.model_validate(car),
                 service_data=ServiceDataResponse.model_validate(record),
                 message=f'Serviço registrado com sucesso para {client.name} - {car.brand} {car.model}'
             )
+            logging.debug(f"Returning chat response: {response.model_dump_json()}")
+            return response
 
         elif intent == 'search_service':
             search_params = gemini_response.get('search_params')
             if not search_params:
+                logging.debug("Raising HTTPException for missing search parameters in search_service intent.")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail={'error': 'Parâmetros de pesquisa ausentes.'}
@@ -223,8 +233,6 @@ async def chat_api(chat_message: ChatMessage, db: AsyncSession = Depends(get_db)
             if service_records:
                 formatted_records = []
                 for record in service_records:
-                    client_info = record.car.owner.name if record.car and record.car.owner else 'N/A'
-                    car_info = f"{record.car.brand} {record.car.model}" if record.car else 'N/A'
                     formatted_records.append(ServiceDataResponse.model_validate(record))
 
                 response_message = "✅ Serviços encontrados:\n"
@@ -238,17 +246,22 @@ async def chat_api(chat_message: ChatMessage, db: AsyncSession = Depends(get_db)
                         f"💰 Valor: {record.valor or 'N/A'}\n"
                         f"---------------------------\n"
                     )
-                return ChatResponse(
+                response = ChatResponse(
                     success=True,
                     message=response_message,
                     service_records=formatted_records
                 )
+                logging.debug(f"Returning chat response: {response.model_dump_json()}")
+                return response
             else:
-                return ChatResponse(
+                response = ChatResponse(
                     success=False,
                     message="Nenhum serviço encontrado com os critérios fornecidos."
                 )
+                logging.debug(f"Returning chat response: {response.model_dump_json()}")
+                return response
         else:
+            logging.debug(f"Raising HTTPException for unknown intent: {intent}.")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={'error': f'Intenção desconhecida: {intent}.'}
@@ -256,6 +269,7 @@ async def chat_api(chat_message: ChatMessage, db: AsyncSession = Depends(get_db)
 
     except Exception as e:
         logging.error(f"An unexpected error occurred: {e}")
+        logging.debug(f"Raising HTTPException for unexpected error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={'error': f'Ocorreu um erro inesperado: {str(e)}'}

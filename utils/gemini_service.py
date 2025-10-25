@@ -13,7 +13,7 @@ else:
     gemini_model = None
 
 # Configurar logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Prompt do sistema para o Gemini
 SYSTEM_PROMPT = """
@@ -35,6 +35,8 @@ async def process_user_message(message):
         return None, "API Key do Gemini não configurada"
 
     full_prompt = f"{SYSTEM_PROMPT}\n\nMensagem do mecânico: {message}"
+    logging.debug(f"Full prompt sent to Gemini: {full_prompt}")
+    response_text = ""
     try:
         # Run the synchronous generate_content in a separate thread
         response = await asyncio.to_thread(functools.partial(gemini_model.generate_content, full_prompt))

@@ -72,11 +72,12 @@ GEMINI_API_KEY="SUA_CHAVE_API_GEMINI"
 #### Executar o Backend
 
 ```bash
-uvicorn app_fastapi:app --reload
+uvicorn app_fastapi:app --reload --host 0.0.0.0 --port 8000
 ```
 
-A API do backend estará disponível em `http://127.0.0.1:8000`.
+A API do backend estará disponível em http://0.0.0.0:8000 (acessível via http://localhost:8000 ou pelo IP da máquina na rede, por exemplo, http://192.168.0.112:8000).
 
+Nota: Se você estiver acessando o frontend de outro dispositivo na rede, certifique-se de que a variável REACT_APP_BACKEND_URL no arquivo frontend/.env esteja configurada com o IP da máquina onde o backend está rodando (ex: REACT_APP_BACKEND_URL=http://192.168.0.112:8000).
 ### 2. Configuração do Frontend
 
 Navegue até o diretório `frontend`:
@@ -94,7 +95,7 @@ npm install
 #### Executar o Frontend
 
 ```bash
-npm start
+HOST=0.0.0.0 npm start
 ```
 
 O servidor de desenvolvimento React será iniciado, geralmente abrindo em seu navegador em `http://localhost:3000`.
