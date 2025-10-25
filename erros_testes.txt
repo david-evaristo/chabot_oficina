@@ -1,0 +1,83 @@
+============================= test session starts ==============================
+collecting ... collected 8 items
+
+tests/unit/test_gemini_api_client.py::TestProcessUserMessage::test_process_message_without_api_key 
+tests/unit/test_gemini_api_client.py::TestProcessUserMessage::test_process_message_record_service_success 
+tests/unit/test_gemini_api_client.py::TestProcessUserMessage::test_process_message_search_service_success 
+tests/unit/test_gemini_api_client.py::TestProcessUserMessage::test_process_message_with_api_error 
+tests/unit/test_gemini_api_client.py::TestProcessUserMessage::test_process_message_generates_correct_prompt 
+tests/unit/test_gemini_api_client.py::TestProcessUserMessage::test_process_message_with_config_parameters 
+tests/unit/test_gemini_api_client.py::TestProcessUserMessage::test_process_message_with_empty_message 
+tests/unit/test_gemini_api_client.py::TestProcessUserMessage::test_process_message_with_special_characters 
+
+========================= 7 failed, 1 passed in 1.64s ==========================
+PASSED [ 12%]FAILED [ 25%]
+tests/unit/test_gemini_api_client.py:75 (TestProcessUserMessage.test_process_message_record_service_success)
+('1 validation error for GenerateContentConfig\n'
+ 'response_json_schema\n'
+ '  Extra inputs are not permitted [type=extra_forbidden, '
+ "input_value={'$defs': {'CreateService...itle': 'GeminiResponse'}, "
+ 'input_type=dict]\n'
+ '    For further information visit '
+ 'https://errors.pydantic.dev/2.12/v/extra_forbidden') != None
+
+<Click to see difference>
+
+tests/unit/test_gemini_api_client.py:90: in test_process_message_record_service_success
+    assert error is None
+E   assert "1 validation error for GenerateContentConfig\nresponse_json_schema\n  Extra inputs are not permitted [type=extra_forbidden, input_value={'$defs': {'CreateService...itle': 'GeminiResponse'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden" is None
+FAILED [ 37%]
+tests/unit/test_gemini_api_client.py:95 (TestProcessUserMessage.test_process_message_search_service_success)
+('1 validation error for GenerateContentConfig\n'
+ 'response_json_schema\n'
+ '  Extra inputs are not permitted [type=extra_forbidden, '
+ "input_value={'$defs': {'CreateService...itle': 'GeminiResponse'}, "
+ 'input_type=dict]\n'
+ '    For further information visit '
+ 'https://errors.pydantic.dev/2.12/v/extra_forbidden') != None
+
+<Click to see difference>
+
+tests/unit/test_gemini_api_client.py:110: in test_process_message_search_service_success
+    assert error is None
+E   assert "1 validation error for GenerateContentConfig\nresponse_json_schema\n  Extra inputs are not permitted [type=extra_forbidden, input_value={'$defs': {'CreateService...itle': 'GeminiResponse'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden" is None
+FAILED [ 50%]
+tests/unit/test_gemini_api_client.py:115 (TestProcessUserMessage.test_process_message_with_api_error)
+'API Error' != ('1 validation error for GenerateContentConfig\n'
+ 'response_json_schema\n'
+ '  Extra inputs are not permitted [type=extra_forbidden, '
+ "input_value={'$defs': {'CreateService...itle': 'GeminiResponse'}, "
+ 'input_type=dict]\n'
+ '    For further information visit '
+ 'https://errors.pydantic.dev/2.12/v/extra_forbidden')
+
+<Click to see difference>
+
+tests/unit/test_gemini_api_client.py:128: in test_process_message_with_api_error
+    assert "API Error" in error
+E   assert 'API Error' in "1 validation error for GenerateContentConfig\nresponse_json_schema\n  Extra inputs are not permitted [type=extra_forbidden, input_value={'$defs': {'CreateService...itle': 'GeminiResponse'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden"
+FAILED [ 62%]
+tests/unit/test_gemini_api_client.py:129 (TestProcessUserMessage.test_process_message_generates_correct_prompt)
+tests/unit/test_gemini_api_client.py:144: in test_process_message_generates_correct_prompt
+    assert mock_generate.called
+E   AssertionError: assert False
+E    +  where False = <AsyncMock name='mock.aio.models.generate_content' id='127173145199920'>.called
+FAILED [ 75%]
+tests/unit/test_gemini_api_client.py:151 (TestProcessUserMessage.test_process_message_with_config_parameters)
+tests/unit/test_gemini_api_client.py:168: in test_process_message_with_config_parameters
+    assert call_args.kwargs['model'] == 'gemini-2.5-flash'
+E   AttributeError: 'NoneType' object has no attribute 'kwargs'
+FAILED [ 87%]
+tests/unit/test_gemini_api_client.py:170 (TestProcessUserMessage.test_process_message_with_empty_message)
+tests/unit/test_gemini_api_client.py:185: in test_process_message_with_empty_message
+    assert mock_gemini_client.aio.models.generate_content.called
+E   AssertionError: assert False
+E    +  where False = <AsyncMock name='mock.aio.models.generate_content' id='127173145461200'>.called
+E    +    where <AsyncMock name='mock.aio.models.generate_content' id='127173145461200'> = <MagicMock name='mock.aio.models' id='127173145449136'>.generate_content
+E    +      where <MagicMock name='mock.aio.models' id='127173145449136'> = <MagicMock name='mock.aio' id='127173145445392'>.models
+E    +        where <MagicMock name='mock.aio' id='127173145445392'> = <MagicMock id='127173145422416'>.aio
+FAILED [100%]
+tests/unit/test_gemini_api_client.py:186 (TestProcessUserMessage.test_process_message_with_special_characters)
+tests/unit/test_gemini_api_client.py:203: in test_process_message_with_special_characters
+    assert special_message in call_args.kwargs['contents']
+E   AttributeError: 'NoneType' object has no attribute 'kwargs'

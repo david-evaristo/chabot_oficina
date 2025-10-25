@@ -6,16 +6,23 @@ class CarRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_or_create_car(self, client_id: int, brand: str, model: str, color: str | None = None, year: int | None = None) -> Car:
-        query = select(Car).where(
-            Car.client_id == client_id,
-            Car.brand.ilike(brand),
-            Car.model.ilike(model)
-        )
-        if color:
+    async def get_or_create_car(self, client_id: int, brand: str | None, model: str, color: str | None = None, year: int | None = None) -> Car:
+        # Build query to find existing car - only match on provided fields
+        query = select(Car).where(Car.client_id == client_id)
+        
+        # Always match on model (required field)
+        query = query.where(Car.model.ilike(model))
+        
+        # Only add conditions for fields that were provided (not None)
+        if brand is not None:
+            query = query.where(Car.brand.ilike(brand))
+        
+        if color is not None:
             query = query.where(Car.color.ilike(color))
-        if year:
+        
+        if year is not None:
             query = query.where(Car.year == year)
+        
         result = await self.db.execute(query)
         car = result.scalars().first()
 

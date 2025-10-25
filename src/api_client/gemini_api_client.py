@@ -12,22 +12,37 @@ if Config.GEMINI_API_KEY:
 # Configurar logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
+def clean_json_schema(schema: dict) -> dict:
+    cleaned_schema = schema.copy()
+    if "$defs" in cleaned_schema:
+        del cleaned_schema["$defs"]
+    return cleaned_schema
+
 async def process_user_message(message):
     if not gemini_client:
         return None, "API Key do Gemini não configurada"
 
-    full_prompt = f"Mensagem do mecânico: {message}"
+    full_prompt = f"""Você deve classificar a intenção do mecânico e extrair os dados.
+
+INTENTS PERMITIDOS (use EXATAMENTE um destes):
+- "record_service": quando o mecânico quer REGISTRAR/CRIAR um novo serviço
+- "search_service": quando o mecânico quer BUSCAR/CONSULTAR serviços existentes
+
+Mensagem do mecânico: {message}
+
+IMPORTANTE: Use APENAS "record_service" ou "search_service" como intent."""
+    
     logging.debug(f"Full prompt sent to Gemini: {full_prompt}")
     try:
-        async with gemini_client.aio as aclient:
-            response = await aclient.models.generate_content(
-                model=Config.GEMINI_MODEL,
-                contents=full_prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type='application/json',
-                    response_json_schema=GeminiResponse.model_json_schema()
-                )
+        cleaned_schema = clean_json_schema(GeminiResponse.model_json_schema())
+        response = await gemini_client.aio.models.generate_content(
+            model=Config.GEMINI_MODEL,
+            contents=full_prompt,
+            generation_config=types.GenerationConfig(
+                response_mime_type='application/json',
+                response_json_schema=cleaned_schema
             )
+        )
         
         parsed_response = response.parsed
         logging.info(f"Gemini parsed response: {parsed_response}")

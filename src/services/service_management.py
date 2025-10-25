@@ -29,8 +29,8 @@ class ServiceManagementService:
         service_valor = data.get('service_valor')
         service_observations = data.get('service_observations')
 
-        if not client_name or not car_brand or not car_model or not service_description:
-            return {"success": False, "message": "Por favor, forneça nome do cliente, marca, modelo do carro e descrição do serviço.", "status_code": 400}
+        if not client_name or not car_model or not service_description:
+            return {"success": False, "message": "Por favor, forneça nome do cliente, modelo do carro e descrição do serviço.", "status_code": 400}
 
         client = await self.client_repo.get_or_create_client(name=client_name, phone=client_phone)
         logger.info(f"Client handled: {client.name}")

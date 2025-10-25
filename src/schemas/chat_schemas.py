@@ -18,7 +18,7 @@ class CreateServiceData(BaseModel):
     service_observations: Optional[str] = Field(None, alias="service_observations")
 
 class CreateServiceSchema(BaseModel):
-    intent: Literal["create_service"]
+    intent: Literal["record_service"]
     data: CreateServiceData
 
 class SearchParamsData(BaseModel):
@@ -31,8 +31,10 @@ class SearchParamsSchema(BaseModel):
     intent: Literal["search_service"]
     search_params: SearchParamsData
 
-class GeminiResponse(RootModel[CreateServiceSchema | SearchParamsSchema]):
-    pass
+class GeminiResponse(BaseModel):
+    intent: Literal["record_service", "search_service"]
+    create_service_data: Optional[CreateServiceSchema] = None
+    search_params_data: Optional[SearchParamsSchema] = None
 
 # Pydantic Models for Response
 class ClientDataResponse(BaseModel):

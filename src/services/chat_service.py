@@ -19,9 +19,10 @@ class ChatService:
         logging.info(f"Handling intent: {intent}")
 
         try:
-            if intent == 'create_service':
+            # Aceitar variações do intent de criação de serviço
+            if intent in ('record_service', 'create_service', 'create_service_record', 'register_service'):
                 return await self._handle_create_service(gemini_response)
-            elif intent == 'search_service':
+            elif intent in ('search_service', 'search'):
                 return await self._handle_search_service(gemini_response)
             else:
                 logging.debug(f"Raising HTTPException for unknown intent: {intent}.")

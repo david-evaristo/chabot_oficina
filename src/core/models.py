@@ -27,7 +27,7 @@ class Car(Base):
     __tablename__ = "cars"
 
     id = Column(Integer, primary_key=True, index=True)
-    brand = Column(String(100), nullable=False)
+    brand = Column(String(100), nullable=True)
     model = Column(String(100), nullable=False)
     color = Column(String(50), nullable=True)
     year = Column(Integer, nullable=True)

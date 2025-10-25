@@ -1,4 +1,3 @@
-
 import json
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
@@ -14,6 +13,7 @@ router = APIRouter()
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 async def _process_and_handle_intent(message: str, db: AsyncSession) -> ChatResponse:
     """
@@ -34,16 +34,41 @@ async def _process_and_handle_intent(message: str, db: AsyncSession) -> ChatResp
     chat_service = ChatService(db)
     return await chat_service.handle_intent(gemini_response)
 
+
 @router.post("/api/chat/audio", response_model=ChatResponse)
-async def chat_audio_api(db: AsyncSession = Depends(get_db), audio_file: UploadFile = File(...)):
-    logging.info(f"Received chat audio API request: {audio_file.filename}")
-    
-    transcribed_message = await transcribe_audio(audio_file)
-    
-    return await _process_and_handle_intent(transcribed_message, db)
+async def chat_audio_api(
+        audio: UploadFile = File(...),
+        db: AsyncSession = Depends(get_db)
+):
+    logging.info(f"Received chat audio API request: {audio.filename}")
+
+    try:
+        # Verificar se o arquivo foi recebido
+        if not audio:
+            logging.error("No audio file received")
+            raise HTTPException(status_code=400, detail="No audio file received")
+
+        logging.info(f"Audio file details - filename: {audio.filename}, content_type: {audio.content_type}")
+
+        # Transcrever áudio
+        transcribed_message = await transcribe_audio(audio)
+        logging.info(f"Transcribed message: {transcribed_message}")
+
+        if not transcribed_message:
+            logging.error("Transcription returned empty message")
+            raise HTTPException(status_code=400, detail="Transcription failed or returned empty message")
+
+        # Processar mensagem
+        return await _process_and_handle_intent(transcribed_message, db)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error in chat_audio_api: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 
 @router.post("/api/chat", response_model=ChatResponse)
 async def chat_api(chat_message: ChatMessage, db: AsyncSession = Depends(get_db)):
     logging.info(f"Received chat API request with message: {chat_message.message}")
     return await _process_and_handle_intent(chat_message.message, db)
-
