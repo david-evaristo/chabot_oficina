@@ -1,9 +1,38 @@
 from datetime import datetime
-from typing import Optional, List
-from pydantic import BaseModel
+from typing import Optional, List, Literal
+from pydantic import BaseModel, Field, RootModel
 
 class ChatMessage(BaseModel):
     message: str
+
+class CreateServiceData(BaseModel):
+    client_name: Optional[str] = Field(None, alias="client_name")
+    client_phone: Optional[str] = Field(None, alias="client_phone")
+    car_brand: Optional[str] = Field(None, alias="car_brand")
+    car_model: Optional[str] = Field(None, alias="car_model")
+    car_color: Optional[str] = Field(None, alias="car_color")
+    car_year: Optional[int] = Field(None, alias="car_year")
+    service_description: str = Field(..., alias="service_description")
+    service_date: Optional[str] = Field(None, alias="service_date")
+    service_valor: Optional[float] = Field(None, alias="service_valor")
+    service_observations: Optional[str] = Field(None, alias="service_observations")
+
+class CreateServiceSchema(BaseModel):
+    intent: Literal["create_service"]
+    data: CreateServiceData
+
+class SearchParamsData(BaseModel):
+    client_name: Optional[str] = Field(None, alias="client_name")
+    car_brand: Optional[str] = Field(None, alias="car_brand")
+    car_model: Optional[str] = Field(None, alias="car_model")
+    service_description: Optional[str] = Field(None, alias="service_description")
+
+class SearchParamsSchema(BaseModel):
+    intent: Literal["search_service"]
+    search_params: SearchParamsData
+
+class GeminiResponse(RootModel[CreateServiceSchema | SearchParamsSchema]):
+    pass
 
 # Pydantic Models for Response
 class ClientDataResponse(BaseModel):
