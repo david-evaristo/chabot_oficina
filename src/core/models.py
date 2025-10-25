@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Date, Float, Text, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
-from datetime import datetime
-from database import Base # Import Base from the new database.py
+from datetime import datetime, timezone
+from src.core.database import Base # Import Base from the new database.py
 
 class Client(Base):
     __tablename__ = "clients"
@@ -9,8 +9,8 @@ class Client(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), nullable=False)
     phone = Column(String(20), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     cars = relationship("Car", back_populates="owner")
 
@@ -32,8 +32,8 @@ class Car(Base):
     color = Column(String(50), nullable=True)
     year = Column(Integer, nullable=True)
     client_id = Column(Integer, ForeignKey("clients.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     owner = relationship("Client", back_populates="cars")
     service_records = relationship("ServiceRecord", back_populates="car")
@@ -59,8 +59,8 @@ class ServiceRecord(Base):
     date = Column(Date, nullable=False)
     valor = Column(Float, nullable=True)
     observations = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     active = Column(Boolean, default=True)
 
     car = relationship("Car", back_populates="service_records")

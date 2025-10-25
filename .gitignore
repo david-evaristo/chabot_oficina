@@ -1,0 +1,20 @@
+# Python
+.python-version
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+venv/
+.env
+*.idea/
+
+# Node.js
+node_modules/
+build/
+dist/
+.DS_Store
+
+# Mech-AI specific
+mech_ai.db

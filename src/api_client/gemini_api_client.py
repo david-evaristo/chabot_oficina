@@ -1,5 +1,5 @@
 import google.generativeai as genai
-from config import Config
+from src.core.config import Config
 import asyncio
 import functools
 import json
@@ -8,7 +8,7 @@ import logging
 # Configuração do Gemini
 if Config.GEMINI_API_KEY:
     genai.configure(api_key=Config.GEMINI_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-2.5-flash')
+    gemini_model = genai.GenerativeModel(Config.GEMINI_MODEL)
 else:
     gemini_model = None
 

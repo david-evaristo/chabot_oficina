@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database import init_db_fastapi
-from routers import services, chat # Import the routers
+from src.core.database import init_db_fastapi
+from src.routers import services, chat # Import the routers
 
 app = FastAPI()
 
@@ -25,4 +25,3 @@ app.include_router(chat.router)
 async def read_root():
     return {"message": "Welcome to Mech-AI FastAPI!"}
 
-# TODO: Integrate routes and database
