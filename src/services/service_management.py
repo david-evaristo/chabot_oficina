@@ -96,7 +96,7 @@ class ServiceManagementService:
                 response_message += (
                     f"---" + " Detalhes do Serviço ---" + "\n"
                     f"👤 Cliente: {record.car.owner.name if record.car and record.car.owner else 'N/A'}" + "\n"
-                    f"🚗 Carro: {record.car.brand} {record.car.model} ({record.car.color or 'N/A'}, {record.car.year or 'N/A'})"
+                    f"🚗 Carro: {record.car.brand} {record.car.model} ({record.car.color or 'N/A'}, {record.car.year or 'N/A'})" + "\n"
                     f"🛠️ Serviço: {record.servico}" + "\n"
                     f"📅 Data: {record.date.strftime('%Y-%m-%d') or 'N/A'}" + "\n"
                     f"💰 Valor: {record.valor or 'N/A'}" + "\n"
