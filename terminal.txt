@@ -1,6 +1,0 @@
-2025-10-25 23:24:00,201 - INFO - AFC is enabled with max remote calls: 10.
-2025-10-25 23:24:00,206 - DEBUG - Starting new HTTPS connection (1): generativelanguage.googleapis.com:443
-2025-10-25 23:24:03,477 - DEBUG - https://generativelanguage.googleapis.com:443 "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1" 200 None
-2025-10-25 23:24:03,484 - INFO - Gemini parsed response: {'intent': 'search_service', 'data': None, 'search_params': {'client_name': None, 'car_brand': 'Chevrolet', 'car_model': 'Celta', 'service_description': None}}
-Erro ao lidar com a intenção: 'dict' object has no attribute 'model_dump'
-Você:
