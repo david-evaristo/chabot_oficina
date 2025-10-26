@@ -12,7 +12,6 @@ Testa a função transcribe_audio com diferentes cenários:
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException, UploadFile
-from io import BytesIO
 from src.api_client.gemini_audio_client import GeminiAudioClient
 from src.core.config import Config
 
@@ -125,7 +124,7 @@ class TestGeminiAudioClient:
             await client.transcribe_audio(mock_audio_file)
             
         assert exc_info.value.status_code == 500
-        assert ('Ocorreu um erro inesperado durante a transcrição do áudio: API Error: Invalid audio format') in exc_info.value.detail
+        assert 'Ocorreu um erro inesperado durante a transcrição do áudio: API Error: Invalid audio format' in exc_info.value.detail
         mock_genai_client.assert_called_once_with(api_key=Config.GEMINI_API_KEY)
         mock_gemini_client_instance.aio.models.generate_content.assert_called_once()
     
