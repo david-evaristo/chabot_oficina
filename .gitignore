@@ -18,3 +18,4 @@ dist/
 
 # Mech-AI specific
 mech_ai.db
+/.vscode/
