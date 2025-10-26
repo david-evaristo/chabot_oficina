@@ -12,12 +12,6 @@ if Config.GEMINI_API_KEY:
 # Configurar logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def clean_json_schema(schema: dict) -> dict:
-    cleaned_schema = schema.copy()
-    if "$defs" in cleaned_schema:
-        del cleaned_schema["$defs"]
-    return cleaned_schema
-
 async def process_user_message(message):
     if not gemini_client:
         return None, "API Key do Gemini não configurada"
@@ -34,14 +28,14 @@ IMPORTANTE: Use APENAS "record_service" ou "search_service" como intent."""
     
     logging.debug(f"Full prompt sent to Gemini: {full_prompt}")
     try:
-        cleaned_schema = clean_json_schema(GeminiResponse.model_json_schema())
+        generation_config = types.GenerateContentConfig(
+            response_mime_type='application/json',
+            response_schema=GeminiResponse.model_json_schema()
+        )
         response = await gemini_client.aio.models.generate_content(
             model=Config.GEMINI_MODEL,
             contents=full_prompt,
-            generation_config=types.GenerationConfig(
-                response_mime_type='application/json',
-                response_json_schema=cleaned_schema
-            )
+            config=generation_config
         )
         
         parsed_response = response.parsed

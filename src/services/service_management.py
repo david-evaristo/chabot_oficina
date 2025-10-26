@@ -87,21 +87,12 @@ class ServiceManagementService:
             client_name=client_name,
             car_brand=car_brand,
             car_model=car_model,
-            service_description=service_description
+            service_description=service_description,
+            active=True
         )
 
         if service_records:
-            response_message = "✅ Serviços encontrados:\n"
-            for record in service_records:
-                response_message += (
-                    f"---" + " Detalhes do Serviço ---" + "\n"
-                    f"👤 Cliente: {record.car.owner.name if record.car and record.car.owner else 'N/A'}" + "\n"
-                    f"🚗 Carro: {record.car.brand} {record.car.model} ({record.car.color or 'N/A'}, {record.car.year or 'N/A'})" + "\n"
-                    f"🛠️ Serviço: {record.servico}" + "\n"
-                    f"📅 Data: {record.date.strftime('%Y-%m-%d') or 'N/A'}" + "\n"
-                    f"💰 Valor: {record.valor or 'N/A'}" + "\n"
-                    f"---------------------------" + "\n"
-                )
+            response_message = "✅ Serviços encontrados:"
             return {"success": True, "message": response_message, "service_records": service_records}
         else:
             return {"success": False, "message": "Nenhum serviço encontrado com os critérios fornecidos.", "status_code": 200}

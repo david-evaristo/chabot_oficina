@@ -60,7 +60,7 @@ async def transcribe_audio(audio_file: UploadFile) -> str:
         )
 
         response = await gemini_client.aio.models.generate_content(
-            model="gemini-2.5-flash",  # CORREÇÃO: Use 1.5-flash, não 2.5-flash
+            model="gemini-2.5-flash",
             contents=contents,
             config=generate_content_config
         )

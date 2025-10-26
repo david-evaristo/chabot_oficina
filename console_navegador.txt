@@ -1,3 +1,5 @@
-(index):1 <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes">
-Chat.js:84  POST https://192.168.0.112:8000/api/chat/audio 500 (Internal Server Error)
-recorder.onstop @ Chat.js:84
+react-dom-client.development.js:28003 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
+192.168.0.112:8000/api/chat:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+Chat.js:86 Erro ao enviar mensagem: Error: HTTP error! status: 500
+    at sendMessage (Chat.js:31:1)
+sendMessage @ Chat.js:86

@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.service_management import ServiceManagementService
-from src.schemas.chat_schemas import ChatResponse, ClientDataResponse, CarDataResponse, ServiceDataResponse
+from src.schemas.chat_schemas import ChatResponse, ServiceDataResponse
 
 class ChatService:
     def __init__(self, db: AsyncSession):
@@ -58,8 +58,6 @@ class ChatService:
 
         return ChatResponse(
             success=True,
-            client_data=ClientDataResponse.model_validate(service_result["client"]),
-            car_data=CarDataResponse.model_validate(service_result["car"]),
             service_data=ServiceDataResponse.model_validate(service_result["service_record"]),
             message=service_result["message"]
         )
@@ -82,13 +80,50 @@ class ChatService:
             )
         
         formatted_records = []
-        if "service_records" in search_result:
-            for record in search_result["service_records"]:
-                formatted_records.append(ServiceDataResponse.model_validate(record))
+        if not search_result["success"]:
+            return ChatResponse(
+                success=False,
+                message=search_result["message"],
+                service_records=[]
+            )
 
-        return ChatResponse(
-            success=True,
-            message=search_result["message"],
-            service_records=formatted_records
-        )
+        service_records = search_result.get("service_records", [])
+
+        if not service_records:
+            return ChatResponse(
+                success=True,
+                message="Nenhum serviço ativo encontrado com os critérios fornecidos.",
+                service_records=[]
+            )
+        
+        if len(service_records) > 1:
+            # If multiple records are found, ask for clarification
+            formatted_list = self._format_service_records_for_response(service_records)
+            return ChatResponse(
+                success=True,
+                message=f"Encontrei múltiplos serviços ativos. Por favor, especifique a qual você se refere:\n{formatted_list}",
+                service_records=[ServiceDataResponse.model_validate(record) for record in service_records]
+            )
+        else:
+            # If only one record is found, return its details
+            record = service_records[0]
+            formatted_record = ServiceDataResponse.model_validate(record)
+            return ChatResponse(
+                success=True,
+                message=f"✅ Serviço encontrado para {record.car.owner.name} - {record.car.brand} {record.car.model}: {record.servico} em {record.date.strftime('%Y-%m-%d')}. Valor: R${record.valor or 'Não informado'}. Observações: {record.observations or 'Nenhuma'}.",
+                service_records=[formatted_record]
+            )
+
+    def _format_service_records_for_response(self, records: list) -> str:
+        """
+        Formats a list of service records into a human-readable string for the chat response.
+        """
+        formatted_strings = []
+        for i, record in enumerate(records):
+            client_name = record.car.owner.name if record.car and record.car.owner else "Desconhecido"
+            car_info = f"{record.car.brand} {record.car.model}" if record.car else "Carro Desconhecido"
+            service_desc = record.servico
+            service_date = record.date.strftime('%Y-%m-%d') if record.date else "Data Desconhecida"
+            formatted_strings.append(f"{i+1}. Cliente: {client_name}, Carro: {car_info}, Serviço: {service_desc}, Data: {service_date}")
+        return "\n".join(formatted_strings)
 
