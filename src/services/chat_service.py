@@ -24,6 +24,8 @@ class ChatService:
                 return await self._handle_create_service(gemini_response)
             elif intent in ('search_service', 'search'):
                 return await self._handle_search_service(gemini_response)
+            elif intent == 'list_active_services':
+                return await self._handle_list_active_services()
             else:
                 logging.debug(f"Raising HTTPException for unknown intent: {intent}.")
                 raise HTTPException(
@@ -64,12 +66,11 @@ class ChatService:
 
     async def _handle_search_service(self, gemini_response: dict) -> ChatResponse:
         search_params = gemini_response.get('search_params')
+        
+        # If search_params are missing, assume the intent is to list all active services
         if not search_params:
-            logging.debug("Raising HTTPException for missing search parameters in search_service intent.")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={'error': 'Parâmetros de pesquisa ausentes.'}
-            )
+            logging.info("No search parameters provided, listing all active services.")
+            return await self._handle_list_active_services()
 
         search_result = await self.service_manager.search_service_records(search_params)
 
@@ -77,14 +78,6 @@ class ChatService:
             raise HTTPException(
                 status_code=search_result.get("status_code", status.HTTP_400_BAD_REQUEST),
                 detail={'error': search_result["message"]}
-            )
-        
-        formatted_records = []
-        if not search_result["success"]:
-            return ChatResponse(
-                success=False,
-                message=search_result["message"],
-                service_records=[]
             )
 
         service_records = search_result.get("service_records", [])
@@ -114,6 +107,32 @@ class ChatService:
                 service_records=[formatted_record]
             )
 
+    async def _handle_list_active_services(self) -> ChatResponse:
+        search_result = await self.service_manager.search_service_records(search_params={})
+
+        if not search_result["success"]:
+            return ChatResponse(
+                success=False,
+                message=search_result["message"],
+                service_records=[]
+            )
+
+        service_records = search_result.get("service_records", [])
+
+        if not service_records:
+            return ChatResponse(
+                success=True,
+                message="Nenhum serviço ativo encontrado.",
+                service_records=[]
+            )
+        
+        formatted_list = self._format_service_records_for_response(service_records)
+        return ChatResponse(
+            success=True,
+            message=f"✅ Serviços ativos:\n{formatted_list}",
+            service_records=[ServiceDataResponse.model_validate(record) for record in service_records]
+        )
+
     def _format_service_records_for_response(self, records: list) -> str:
         """
         Formats a list of service records into a human-readable string for the chat response.
@@ -126,4 +145,3 @@ class ChatService:
             service_date = record.date.strftime('%Y-%m-%d') if record.date else "Data Desconhecida"
             formatted_strings.append(f"{i+1}. Cliente: {client_name}, Carro: {car_info}, Serviço: {service_desc}, Data: {service_date}")
         return "\n".join(formatted_strings)
-

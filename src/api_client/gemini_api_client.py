@@ -21,6 +21,7 @@ async def process_user_message(message):
 INTENTS PERMITIDOS (use EXATAMENTE um destes):
 - "record_service": quando o mecânico quer REGISTRAR/CRIAR um novo serviço
 - "search_service": quando o mecânico quer BUSCAR/CONSULTAR serviços existentes
+- "list_active_services": quando o mecânico quer LISTAR todos os serviços ativos
 
 Mensagem do mecânico: {message}
 

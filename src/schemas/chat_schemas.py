@@ -24,7 +24,7 @@ class SearchParamsData(BaseModel):
     service_description: Optional[str] = Field(None, alias="service_description")
 
 class GeminiResponse(BaseModel):
-    intent: Literal["record_service", "search_service"]
+    intent: Literal["record_service", "search_service", "list_active_services"]
     data: Optional[CreateServiceData] = None
     search_params: Optional[SearchParamsData] = None
 

@@ -80,8 +80,7 @@ class ServiceManagementService:
         car_model = search_params.get('car_model')
         service_description = search_params.get('service_description')
 
-        if not client_name and not car_brand and not car_model and not service_description:
-            return {"success": False, "message": "Por favor, forneça nome do cliente, marca, modelo do carro ou descrição do serviço para a pesquisa.", "status_code": 400}
+
 
         service_records = await self.service_repo.search_service_records(
             client_name=client_name,
