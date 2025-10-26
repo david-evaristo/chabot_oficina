@@ -3,49 +3,43 @@ from google import genai
 from google.genai import types
 from src.core.config import Config
 from src.schemas.chat_schemas import GeminiResponse
+from fastapi import HTTPException, status
+from google.api_core.exceptions import GoogleAPIError
+from src.utils.prompts import GEMINI_CLASSIFICATION_PROMPT
 
-# Configuração do Gemini
-gemini_client = None
-if Config.GEMINI_API_KEY:
-    gemini_client = genai.Client(api_key=Config.GEMINI_API_KEY)
+logger = logging.getLogger(__name__)
 
-# Configurar logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+class GeminiAPIClient:
+    def __init__(self, api_key: str):
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY não configurada.")
+        self.client = genai.Client(api_key=api_key)
+        self.model_name = Config.GEMINI_MODEL
 
-async def process_user_message(message):
-    if not gemini_client:
-        return None, "API Key do Gemini não configurada"
-
-    full_prompt = f"""Você deve classificar a intenção do mecânico e extrair os dados.
-
-INTENTS PERMITIDOS (use EXATAMENTE um destes):
-- "record_service": quando o mecânico quer REGISTRAR/CRIAR um novo serviço
-- "search_service": quando o mecânico quer BUSCAR/CONSULTAR serviços existentes
-- "list_active_services": quando o mecânico quer LISTAR todos os serviços ativos
-
-Ao extrair a marca e o modelo do carro, seja o mais preciso possível. Se a marca não for explicitamente mencionada, tente inferir a marca com base no modelo. Por exemplo:
-- "BMW 320i" deve ter "BMW" como marca e "320i" como modelo.
-- "Corolla" deve ter "Toyota" como marca e "Corolla" como modelo.
-
-MENSAGEM DO MECÂNICO: {message}
-
-IMPORTANTE: Use APENAS "record_service" ou "search_service" como intent."""
-    
-    logging.debug(f"Full prompt sent to Gemini: {full_prompt}")
-    try:
-        generation_config = types.GenerateContentConfig(
-            response_mime_type='application/json',
-            response_schema=GeminiResponse.model_json_schema()
-        )
-        response = await gemini_client.aio.models.generate_content(
-            model=Config.GEMINI_MODEL,
-            contents=full_prompt,
-            config=generation_config
-        )
+    async def process_user_message(self, message: str):
+        full_prompt = GEMINI_CLASSIFICATION_PROMPT.format(message=message)
         
-        parsed_response = response.parsed
-        logging.info(f"Gemini parsed response: {parsed_response}")
-        return parsed_response, None
-    except Exception as e:
-        logging.error(f"Error processing Gemini response: {e}")
-        return None, str(e)
+        logger.debug(f"Full prompt sent to Gemini: {full_prompt}")
+        try:
+            generation_config = types.GenerateContentConfig(
+                response_mime_type='application/json',
+                response_schema=GeminiResponse.model_json_schema()
+            )
+            response = await self.client.aio.models.generate_content(
+                model=self.model_name,
+                contents=full_prompt,
+                config=generation_config
+            )
+            
+            parsed_response = response.parsed
+            logger.info(f"Gemini parsed response: {parsed_response}")
+            return parsed_response
+        except GoogleAPIError as e:
+            logger.error(f"Gemini API error: {e}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro na API do Gemini: {str(e)}")
+        except ValueError as e:
+            logger.error(f"Validation error: {e}")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erro de validação: {str(e)}")
+        except Exception as e:
+            logger.error(f"An unexpected error occurred: {e}", exc_info=True)
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Ocorreu um erro inesperado: {str(e)}")

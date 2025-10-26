@@ -15,7 +15,7 @@ class ChatService:
         """
         Processes the Gemini response and routes to the correct service based on intent.
         """
-        intent = gemini_response.get('intent')
+        intent = gemini_response.intent
         logging.info(f"Handling intent: {intent}")
 
         try:
@@ -42,7 +42,7 @@ class ChatService:
             )
 
     async def _handle_create_service(self, gemini_response: dict) -> ChatResponse:
-        data = gemini_response.get('data')
+        data = gemini_response.data
         if not data:
             logging.debug("Raising HTTPException for missing data in create_service intent.")
             raise HTTPException(
@@ -75,7 +75,7 @@ class ChatService:
         )
 
     async def _handle_search_service(self, gemini_response: dict) -> ChatResponse:
-        search_params = gemini_response.get('search_params')
+        search_params = gemini_response.search_params
 
         # If search_params are missing, assume the intent is to list all active services
         if not search_params:
@@ -160,15 +160,15 @@ class ChatService:
         Formats a list of service records into a human-readable string for the chat response.
         """
         formatted_strings = []
-        for i, record in enumerate(records):
+        for record in records:
             client_name = record.car.owner.name if record.car and record.car.owner else "Desconhecido"
-            car_info = f"{record.car.brand} {record.car.model}" if record.car else "Carro Desconhecido"
-            service_desc = record.servico
+            car_info = f"{record.car.brand or ''} {record.car.model or ''}".strip() or "Carro Desconhecido"
             service_date = record.date.strftime('%Y-%m-%d') if record.date else "Data Desconhecida"
 
-            formatted_strings.append(f"**Cliente:** {client_name}\n"
+            formatted_strings.append(
+                f"**Cliente:** {client_name}\n"
                 f"&emsp;**Carro:** {car_info}\n"
-                f"&emsp;**Serviço:** {service_desc}\n"
+                f"&emsp;**Serviço:** {record.servico}\n"
                 f"&emsp;**Data:** {service_date}\n"
                 "───────────────────"
             )
