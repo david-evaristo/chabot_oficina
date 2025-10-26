@@ -1,10 +1,10 @@
-
 import logging
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.service_management import ServiceManagementService
 from src.schemas.chat_schemas import ChatResponse, ServiceDataResponse
+
 
 class ChatService:
     def __init__(self, db: AsyncSession):
@@ -49,7 +49,7 @@ class ChatService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={'error': 'Dados ausentes para criação de serviço.'}
             )
-        
+
         service_result = await self.service_manager.create_service_record(data)
 
         if not service_result["success"]:
@@ -58,15 +58,25 @@ class ChatService:
                 detail={'error': service_result["message"]}
             )
 
+        service_record = ServiceDataResponse.model_validate(service_result["service_record"])
+        formatted_message = (
+            "✅ **Detalhes do Serviço Registrado:**\n"
+            f"    **Cliente:** {service_record.car.owner.name if service_record.car and service_record.car.owner else 'Não informado'}\n"
+            f"    **Veículo:** {service_record.car.brand if service_record.car else 'Não informado'} {service_record.car.model if service_record.car else ''} ({service_record.car.year if service_record.car else 'Não informado'})\n"
+            f"    **Serviço:** {service_record.servico}\n"
+            f"    **Data:** {service_record.date.strftime('%Y-%m-%d') if service_record.date else 'Não informada'}\n"
+            f"    **Custo:** R$ {service_record.valor if service_record.valor is not None else 'Não informado'}\n"
+            f"    **Observações:** {service_record.observations if service_record.observations else 'Nenhuma'}"
+        )
         return ChatResponse(
             success=True,
-            service_data=ServiceDataResponse.model_validate(service_result["service_record"]),
-            message=service_result["message"]
+            service_data=service_record,
+            message=formatted_message
         )
 
     async def _handle_search_service(self, gemini_response: dict) -> ChatResponse:
         search_params = gemini_response.get('search_params')
-        
+
         # If search_params are missing, assume the intent is to list all active services
         if not search_params:
             logging.info("No search parameters provided, listing all active services.")
@@ -88,22 +98,34 @@ class ChatService:
                 message="Nenhum serviço ativo encontrado com os critérios fornecidos.",
                 service_records=[]
             )
-        
+
         if len(service_records) > 1:
             # If multiple records are found, ask for clarification
             formatted_list = self._format_service_records_for_response(service_records)
+            logging.debug(f"\n\nLista de serviços encontrados: {formatted_list}")
+            message_ = f"Encontrei múltiplos serviços ativos. Por favor, especifique a qual você se refere\n{formatted_list}"
+            logging.debug(f"\n\nmessage encontrados: {message_}")
             return ChatResponse(
                 success=True,
-                message=f"Encontrei múltiplos serviços ativos. Por favor, especifique a qual você se refere:\n{formatted_list}",
+                message=message_,
                 service_records=[ServiceDataResponse.model_validate(record) for record in service_records]
             )
         else:
             # If only one record is found, return its details
             record = service_records[0]
             formatted_record = ServiceDataResponse.model_validate(record)
+            formatted_message = (
+                "✅ **Detalhes do Serviço Encontrado:**\n"
+                f"    **Cliente:** {record.car.owner.name if record.car and record.car.owner else 'Não informado'}\n"
+                f"    **Veículo:** {record.car.brand if record.car else 'Não informado'} {record.car.model if record.car else ''} ({record.car.year if record.car else 'Não informado'})\n"
+                f"    **Serviço:** {record.servico}\n"
+                f"    **Data:** {record.date.strftime('%Y-%m-%d') if record.date else 'Não informada'}\n"
+                f"    **Custo:** R$ {record.valor if record.valor is not None else 'Não informado'}\n"
+                f"    **Observações:** {record.observations if record.observations else 'Nenhuma'}"
+            )
             return ChatResponse(
                 success=True,
-                message=f"✅ Serviço encontrado para {record.car.owner.name} - {record.car.brand} {record.car.model}: {record.servico} em {record.date.strftime('%Y-%m-%d')}. Valor: R${record.valor or 'Não informado'}. Observações: {record.observations or 'Nenhuma'}.",
+                message=formatted_message,
                 service_records=[formatted_record]
             )
 
@@ -125,11 +147,11 @@ class ChatService:
                 message="Nenhum serviço ativo encontrado.",
                 service_records=[]
             )
-        
+
         formatted_list = self._format_service_records_for_response(service_records)
         return ChatResponse(
             success=True,
-            message=f"✅ Serviços ativos:\n{formatted_list}",
+            message=f"✅ **Serviços ativos:**\n{formatted_list}",
             service_records=[ServiceDataResponse.model_validate(record) for record in service_records]
         )
 
@@ -143,5 +165,11 @@ class ChatService:
             car_info = f"{record.car.brand} {record.car.model}" if record.car else "Carro Desconhecido"
             service_desc = record.servico
             service_date = record.date.strftime('%Y-%m-%d') if record.date else "Data Desconhecida"
-            formatted_strings.append(f"{i+1}. Cliente: {client_name}, Carro: {car_info}, Serviço: {service_desc}, Data: {service_date}")
+
+            formatted_strings.append(f"**Cliente:** {client_name}\n"
+                f"&emsp;**Carro:** {car_info}\n"
+                f"&emsp;**Serviço:** {service_desc}\n"
+                f"&emsp;**Data:** {service_date}\n"
+                "───────────────────"
+            )
         return "\n".join(formatted_strings)

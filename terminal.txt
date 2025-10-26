@@ -1,27 +1,6 @@
-2025-10-25 21:29:22,102 INFO sqlalchemy.engine.Engine SELECT clients.id AS clients_id, clients.name AS clients_name, clients.phone AS clients_phone, clients.created_at AS clients_created_at, clients.updated_at AS clients_updated_at
-FROM clients
-WHERE clients.id IN (?)
-2025-10-25 21:29:22,102 - INFO - SELECT clients.id AS clients_id, clients.name AS clients_name, clients.phone AS clients_phone, clients.created_at AS clients_created_at, clients.updated_at AS clients_updated_at
-FROM clients
-WHERE clients.id IN (?)
-2025-10-25 21:29:22,102 INFO sqlalchemy.engine.Engine [generated in 0.00025s] (4,)
-2025-10-25 21:29:22,102 - INFO - [generated in 0.00025s] (4,)
-2025-10-25 21:29:22,102 - DEBUG - executing functools.partial(<built-in method cursor of sqlite3.Connection object at 0x761f5d9d87c0>)
-2025-10-25 21:29:22,102 - DEBUG - operation functools.partial(<built-in method cursor of sqlite3.Connection object at 0x761f5d9d87c0>) completed
-2025-10-25 21:29:22,103 - DEBUG - executing functools.partial(<built-in method execute of sqlite3.Cursor object at 0x761f5d4a3bc0>, 'SELECT clients.id AS clients_id, clients.name AS clients_name, clients.phone AS clients_phone, clients.created_at AS clients_created_at, clients.updated_at AS clients_updated_at \nFROM clients \nWHERE clients.id IN (?)', (4,))
-2025-10-25 21:29:22,103 - DEBUG - operation functools.partial(<built-in method execute of sqlite3.Cursor object at 0x761f5d4a3bc0>, 'SELECT clients.id AS clients_id, clients.name AS clients_name, clients.phone AS clients_phone, clients.created_at AS clients_created_at, clients.updated_at AS clients_updated_at \nFROM clients \nWHERE clients.id IN (?)', (4,)) completed
-2025-10-25 21:29:22,103 - DEBUG - executing functools.partial(<built-in method fetchall of sqlite3.Cursor object at 0x761f5d4a3bc0>)
-2025-10-25 21:29:22,103 - DEBUG - operation functools.partial(<built-in method fetchall of sqlite3.Cursor object at 0x761f5d4a3bc0>) completed
-2025-10-25 21:29:22,103 - DEBUG - executing functools.partial(<built-in method close of sqlite3.Cursor object at 0x761f5d4a3bc0>)
-2025-10-25 21:29:22,103 - DEBUG - operation functools.partial(<built-in method close of sqlite3.Cursor object at 0x761f5d4a3bc0>) completed
-2025-10-25 21:29:22,107 - ERROR - An unexpected error occurred while handling intent 'search_service': 1 validation error for ServiceDataResponse
-car.brand
-  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.12/v/string_type
-2025-10-25 21:29:22,107 INFO sqlalchemy.engine.Engine ROLLBACK
-2025-10-25 21:29:22,107 - INFO - ROLLBACK
-2025-10-25 21:29:22,107 - DEBUG - executing functools.partial(<built-in method rollback of sqlite3.Connection object at 0x761f5d9d87c0>)
-2025-10-25 21:29:22,107 - DEBUG - operation functools.partial(<built-in method rollback of sqlite3.Connection object at 0x761f5d9d87c0>) completed
-2025-10-25 21:29:22,107 - DEBUG - executing functools.partial(<built-in method rollback of sqlite3.Connection object at 0x761f5d9d87c0>)
-2025-10-25 21:29:22,107 - DEBUG - operation functools.partial(<built-in method rollback of sqlite3.Connection object at 0x761f5d9d87c0>) completed
-INFO:     192.168.0.112:54836 - "POST /api/chat HTTP/1.1" 500 Internal Server Error
+2025-10-25 23:24:00,201 - INFO - AFC is enabled with max remote calls: 10.
+2025-10-25 23:24:00,206 - DEBUG - Starting new HTTPS connection (1): generativelanguage.googleapis.com:443
+2025-10-25 23:24:03,477 - DEBUG - https://generativelanguage.googleapis.com:443 "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1" 200 None
+2025-10-25 23:24:03,484 - INFO - Gemini parsed response: {'intent': 'search_service', 'data': None, 'search_params': {'client_name': None, 'car_brand': 'Chevrolet', 'car_model': 'Celta', 'service_description': None}}
+Erro ao lidar com a intenção: 'dict' object has no attribute 'model_dump'
+Você:
