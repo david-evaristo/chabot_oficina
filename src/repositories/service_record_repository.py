@@ -38,4 +38,4 @@ class ServiceRecordRepository:
             query = query.where(ServiceRecord.active == active)
 
         result = await self.db.execute(query.order_by(ServiceRecord.created_at.desc()))
-        return result.scalars().all()
+        return await result.scalars().all()

@@ -11,7 +11,7 @@ class ClientRepository:
         if phone:
             query = query.where(Client.phone == phone)
         result = await self.db.execute(query)
-        client = result.scalars().first()
+        client = await result.scalars().first()
 
         if not client:
             client = Client(name=name, phone=phone)

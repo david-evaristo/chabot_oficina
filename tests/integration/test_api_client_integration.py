@@ -11,14 +11,16 @@ da API sem fazer chamadas reais ao Gemini (que requerem API key válida).
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import UploadFile, HTTPException
-from src.api_client.gemini_api_client import process_user_message
-from src.api_client.gemini_audio_client import transcribe_audio
-from src.schemas.chat_schemas import (
-    CreateServiceSchema,
-    CreateServiceData,
-    SearchParamsSchema,
-    SearchParamsData
-)
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.schemas.chat_schemas import GeminiResponse, CreateServiceData, SearchParamsData
+from src.api_client.gemini_api_client import GeminiAPIClient
+from src.api_client.gemini_audio_client import GeminiAudioClient
+from src.routers.chat import _process_and_handle_intent
+from src.core.database import get_db
+from src.core.config import Config
+from src.core.models import Client, Car, ServiceRecord
+from datetime import datetime
 
 
 @pytest.fixture
@@ -41,8 +43,8 @@ class TestEndToEndFlow:
         3. Dados são extraídos corretamente
         """
         # Preparar resposta mock
-        mock_client = MagicMock()
-        expected_data = CreateServiceSchema(
+        mock_gemini_api_client_instance = MagicMock(spec=GeminiAPIClient)
+        expected_data = GeminiResponse(
             intent="record_service",
             data=CreateServiceData(
                 client_name="Maria Santos",
@@ -58,37 +60,61 @@ class TestEndToEndFlow:
             )
         )
 
-        mock_response = MagicMock()
-        mock_response.parsed = expected_data
-        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+        # Mock do banco de dados
+        mock_db = AsyncMock(spec=AsyncSession)
+        mock_client_instance = MagicMock(spec=Client)
+        mock_client_instance.id = 1
+        mock_client_instance.name = "Maria Santos"
+        mock_client_instance.phone = "11987654321"
 
-        with patch('src.api_client.gemini_api_client.gemini_client', mock_client):
-            user_message = """
+        mock_car_instance = MagicMock(spec=Car)
+        mock_car_instance.id = 1
+        mock_car_instance.brand = "Honda"
+        mock_car_instance.model = "Civic"
+        mock_car_instance.color = "Prata"
+        mock_car_instance.year = 2021
+
+        mock_service_record_instance = MagicMock(spec=ServiceRecord)
+        mock_service_record_instance.id = 1
+        mock_service_record_instance.servico = "Revisão dos 10.000 km"
+        mock_service_record_instance.date = datetime.now()
+        mock_service_record_instance.valor = 450.00
+        mock_service_record_instance.observations = "Incluir troca de filtros"
+        mock_service_record_instance.car = mock_car_instance
+
+        mock_scalar_result_client = MagicMock()
+        mock_scalar_result_client.first.return_value = mock_client_instance
+
+        mock_scalar_result_car = MagicMock()
+        mock_scalar_result_car.first.return_value = mock_car_instance
+
+        mock_result_execute = MagicMock()
+        mock_result_execute.scalars.side_effect = [mock_scalar_result_client, mock_scalar_result_car]
+
+        mock_db.execute.return_value = mock_result_execute
+        mock_db.flush.return_value = None
+        mock_db.commit.return_value = None
+        mock_db.refresh.side_effect = [mock_client_instance, mock_car_instance, mock_service_record_instance]
+
+        user_message = """
             Registrar revisão do Civic da Maria Santos, telefone 11987654321,
             carro prata ano 2021, revisão dos 10.000 km, valor 450 reais,
             incluir troca de filtros
             """
 
-            result, error = await process_user_message(user_message)
+        result = await _process_and_handle_intent(user_message, mock_db, mock_gemini_api_client_instance)
 
-            assert error is None
-            assert result is not None
-            assert result.intent == "record_service"
-            assert result.data.client_name == "Maria Santos"
-            assert result.data.car_model == "Civic"
-            assert result.data.service_valor == 450.00
+        assert result is not None
+        assert result.intent == "record_service"
+        assert result.data.client_name == "Maria Santos"
+        assert result.data.car_model == "Civic"
+        assert result.data.service_valor == 450.00
 
     @pytest.mark.asyncio
     @patch('src.api_client.gemini_api_client.types.GenerationConfig')
-    @patch('src.api_client.gemini_api_client.gemini_client')
-    async def test_complete_service_search_flow(self, mock_gemini_client, mock_gen_config, mock_env_with_api_key):
-        """
-        Testa fluxo completo de busca de serviço:
-        1. Usuário envia mensagem de busca
-        2. Gemini classifica como search_service
-        3. Parâmetros de busca são extraídos
-        """
-        expected_data = SearchParamsSchema(
+    async def test_complete_service_search_flow(self, mock_gen_config, mock_env_with_api_key):
+        mock_gemini_api_client_instance = MagicMock(spec=GeminiAPIClient)
+        expected_data = GeminiResponse(
             intent="search_service",
             search_params=SearchParamsData(
                 client_name="Pedro",
@@ -97,15 +123,38 @@ class TestEndToEndFlow:
             )
         )
 
-        mock_response = MagicMock()
-        mock_response.parsed = expected_data
-        mock_gemini_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        mock_client_instance = MagicMock(spec=Client)
+        mock_client_instance.id = 1
+        mock_client_instance.name = "Pedro"
+
+        mock_car_instance = MagicMock(spec=Car)
+        mock_car_instance.id = 1
+        mock_car_instance.brand = "Ford"
+        mock_car_instance.model = "Focus"
+        mock_car_instance.owner = mock_client_instance
+
+        mock_service_record_instance = MagicMock(spec=ServiceRecord)
+        mock_service_record_instance.id = 1
+        mock_service_record_instance.servico = "Troca de óleo"
+        mock_service_record_instance.date = datetime.now()
+        mock_service_record_instance.valor = 100.00
+        mock_service_record_instance.observations = ""
+        mock_service_record_instance.car = mock_car_instance
+
+        mock_scalar_result_service_records = MagicMock()
+        mock_scalar_result_service_records.all.return_value = [mock_service_record_instance]
+
+        mock_result_execute = MagicMock()
+        mock_result_execute.scalars.return_value = mock_scalar_result_service_records
+
+        mock_db.execute.return_value = mock_result_execute
 
         user_message = "Buscar serviços do Pedro com Ford Focus"
 
-        result, error = await process_user_message(user_message)
+        result = await _process_and_handle_intent(user_message, mock_db, mock_gemini_api_client_instance)
 
-        assert error is None
         assert result is not None
         assert result.intent == "search_service"
         assert result.search_params.client_name == "Pedro"
@@ -121,14 +170,13 @@ class TestEndToEndFlow:
         3. Serviço é registrado
         """
         # Mock para transcrição
-        mock_client = MagicMock()
+        mock_gemini_audio_client_instance = MagicMock(spec=GeminiAudioClient)
         transcription_text = "Registrar troca de óleo do Gol do Carlos, valor 120 reais"
-
-        mock_transcription_response = MagicMock()
-        mock_transcription_response.text = transcription_text
+        mock_gemini_audio_client_instance.transcribe_audio = AsyncMock(return_value=transcription_text)
 
         # Mock para processamento
-        service_data = CreateServiceSchema(
+        mock_gemini_api_client_instance = MagicMock(spec=GeminiAPIClient)
+        service_data = GeminiResponse(
             intent="record_service",
             data=CreateServiceData(
                 client_name="Carlos",
@@ -137,14 +185,41 @@ class TestEndToEndFlow:
                 service_valor=120.00
             )
         )
+        # Mock do banco de dados
+        mock_db = AsyncMock(spec=AsyncSession)
+        mock_client_instance = MagicMock(spec=Client)
+        mock_client_instance.id = 1
+        mock_client_instance.name = "Carlos"
+        mock_client_instance.phone = None
 
-        mock_processing_response = MagicMock()
-        mock_processing_response.parsed = service_data
+        mock_car_instance = MagicMock(spec=Car)
+        mock_car_instance.id = 1
+        mock_car_instance.brand = None
+        mock_car_instance.model = "Gol"
+        mock_car_instance.color = None
+        mock_car_instance.year = None
 
-        # Configurar mock para retornar diferentes respostas
-        mock_client.aio.models.generate_content = AsyncMock(
-            side_effect=[mock_transcription_response, mock_processing_response]
-        )
+        mock_service_record_instance = MagicMock(spec=ServiceRecord)
+        mock_service_record_instance.id = 1
+        mock_service_record_instance.servico = "Troca de óleo"
+        mock_service_record_instance.date = datetime.now()
+        mock_service_record_instance.valor = 120.00
+        mock_service_record_instance.observations = None
+        mock_service_record_instance.car = mock_car_instance
+
+        mock_scalar_result_client = MagicMock()
+        mock_scalar_result_client.first.return_value = mock_client_instance
+
+        mock_scalar_result_car = MagicMock()
+        mock_scalar_result_car.first.return_value = mock_car_instance
+
+        mock_result_execute = MagicMock()
+        mock_result_execute.scalars.side_effect = [mock_scalar_result_client, mock_scalar_result_car]
+
+        mock_db.execute.return_value = mock_result_execute
+        mock_db.flush.return_value = None
+        mock_db.commit.return_value = None
+        mock_db.refresh.side_effect = [mock_client_instance, mock_car_instance, mock_service_record_instance]
 
         # Criar mock de arquivo de áudio
         mock_audio = MagicMock(spec=UploadFile)
@@ -152,60 +227,58 @@ class TestEndToEndFlow:
         mock_audio.content_type = "audio/webm"
         mock_audio.read = AsyncMock(return_value=b"fake audio bytes")
 
-        with patch('src.api_client.gemini_audio_client.gemini_client', mock_client):
-            with patch('src.api_client.gemini_api_client.gemini_client', mock_client):
-                # Passo 1: Transcrever áudio
-                transcribed = await transcribe_audio(mock_audio)
-                assert transcribed == transcription_text
+        # Passo 1: Transcrever áudio
+        transcribed = await mock_gemini_audio_client_instance.transcribe_audio(mock_audio)
+        assert transcribed == transcription_text
 
-                # Passo 2: Processar texto transcrito
-                result, error = await process_user_message(transcribed)
+        # Passo 2: Processar texto transcrito
+        result = await _process_and_handle_intent(transcribed, mock_db, mock_gemini_api_client_instance)
 
-                assert error is None
-                assert result.intent == "record_service"
-                assert result.data.client_name == "Carlos"
-                assert result.data.service_valor == 120.00
+        assert result.intent == "record_service"
+        assert result.data.client_name == "Carlos"
+        assert result.data.service_valor == 120.00
 
 
 class TestErrorHandlingIntegration:
     """Testes de integração focados em tratamento de erros."""
 
     @pytest.mark.asyncio
-    async def test_api_key_validation_across_modules(self):
+    async def test_api_key_validation_across_modules(self, monkeypatch):
         """Verifica que ambos os módulos validam corretamente a ausência de API key."""
-        with patch('src.api_client.gemini_api_client.gemini_client', None):
-            with patch('src.api_client.gemini_audio_client.gemini_client', None):
-                # Testar process_user_message
-                result, error = await process_user_message("teste")
-                assert error == "API Key do Gemini não configurada"
+        monkeypatch.setenv("GEMINI_API_KEY", "")
 
-                # Testar transcribe_audio
-                mock_audio = MagicMock(spec=UploadFile)
-                mock_audio.read = AsyncMock(return_value=b"data")
+        from importlib import reload
+        from src.core import config
+        reload(config)
 
-                with pytest.raises(HTTPException) as exc_info:
-                    await transcribe_audio(mock_audio)
-                assert "API Key do Gemini não configurada" in str(exc_info.value.detail)
+        # Testar GeminiAPIClient
+        with pytest.raises(ValueError) as exc_info:
+            GeminiAPIClient(api_key=config.Config.GEMINI_API_KEY)
+        assert "GEMINI_API_KEY não configurada." in str(exc_info.value)
+
+        # Testar GeminiAudioClient
+        with pytest.raises(ValueError) as exc_info:
+            GeminiAudioClient(api_key=config.Config.GEMINI_API_KEY)
+        assert "GEMINI_API_KEY não configurada." in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_error_propagation_in_pipeline(self, mock_env_with_api_key):
         """Testa propagação de erros ao longo do pipeline."""
-        mock_client = MagicMock()
-        mock_client.aio.models.generate_content = AsyncMock(
+        mock_gemini_audio_client_instance = GeminiAudioClient(api_key=Config.GEMINI_API_KEY)
+        mock_gemini_audio_client_instance.client.aio.models.generate_content = AsyncMock(
             side_effect=Exception("Network timeout")
         )
 
-        with patch('src.api_client.gemini_audio_client.gemini_client', mock_client):
-            mock_audio = MagicMock(spec=UploadFile)
-            mock_audio.filename = "test.webm"
-            mock_audio.content_type = "audio/webm"
-            mock_audio.read = AsyncMock(return_value=b"audio data")
+        mock_audio = MagicMock(spec=UploadFile)
+        mock_audio.filename = "test.webm"
+        mock_audio.content_type = "audio/webm"
+        mock_audio.read = AsyncMock(return_value=b"audio data")
 
-            with pytest.raises(HTTPException) as exc_info:
-                await transcribe_audio(mock_audio)
+        with pytest.raises(HTTPException) as exc_info:
+            await mock_gemini_audio_client_instance.transcribe_audio(mock_audio)
 
-            assert "Erro na transcrição do áudio" in str(exc_info.value.detail)
-            assert "Network timeout" in str(exc_info.value.detail)
+        assert "Ocorreu um erro inesperado durante a transcrição do áudio" in str(exc_info.value.detail)
+        assert "Network timeout" in str(exc_info.value.detail)
 
 
 class TestSchemaValidation:
@@ -216,7 +289,7 @@ class TestSchemaValidation:
         """Testa validação de schema com todos os campos preenchidos."""
         mock_client = MagicMock()
 
-        complete_data = CreateServiceSchema(
+        complete_data = GeminiResponse(
             intent="record_service",
             data=CreateServiceData(
                 client_name="Ana Paula",
@@ -240,7 +313,7 @@ class TestSchemaValidation:
     @pytest.mark.asyncio
     async def test_schema_validation_for_minimal_service_data(self, mock_env_with_api_key):
         """Testa validação de schema com campos mínimos (apenas obrigatórios)."""
-        minimal_data = CreateServiceSchema(
+        minimal_data = GeminiResponse(
             intent="record_service",
             data=CreateServiceData(
                 service_description="Troca de pneus"
@@ -256,7 +329,7 @@ class TestSchemaValidation:
     @pytest.mark.asyncio
     async def test_schema_validation_for_search_params(self, mock_env_with_api_key):
         """Testa validação de schema para parâmetros de busca."""
-        search_data = SearchParamsSchema(
+        search_data = GeminiResponse(
             intent="search_service",
             search_params=SearchParamsData(
                 client_name="Roberto",
@@ -273,8 +346,8 @@ class TestConfigurationIntegration:
     """Testes de integração com configurações."""
 
     @pytest.mark.asyncio
-    @patch('src.api_client.gemini_api_client.types.GenerationConfig')
-    async def test_model_configuration_is_used(self, mock_gen_config, mock_env_with_api_key, monkeypatch):
+    @patch('src.api_client.gemini_api_client.types.GenerateContentConfig')
+    async def test_model_configuration_is_used(self, mock_gen_config_class, mock_env_with_api_key, monkeypatch):
         """Verifica se a configuração de modelo é utilizada corretamente."""
         # Configurar modelo customizado
         custom_model = "gemini-custom-model"
@@ -287,20 +360,15 @@ class TestConfigurationIntegration:
         reload(config)
         reload(gemini_api_client)
 
-        mock_client = MagicMock()
-        mock_response = MagicMock()
-        mock_response.parsed = MagicMock()
+        mock_gemini_api_client_instance = GeminiAPIClient(api_key=Config.GEMINI_API_KEY)
+        mock_gemini_api_client_instance.client.aio.models.generate_content = AsyncMock()
 
-        mock_generate = AsyncMock(return_value=mock_response)
-        mock_client.aio.models.generate_content = mock_generate
+        await mock_gemini_api_client_instance.process_user_message("teste")
 
-        with patch('src.api_client.gemini_api_client.gemini_client', mock_client):
-            await gemini_api_client.process_user_message("teste")
-
-            # Verificar que o modelo correto foi usado
-            mock_generate.assert_called_once()
-            call_args, call_kwargs = mock_generate.call_args
-            assert call_kwargs.get("model") == custom_model
+        # Verificar que o modelo correto foi usado
+        mock_gemini_api_client_instance.client.aio.models.generate_content.assert_called_once()
+        call_kwargs = mock_gemini_api_client_instance.client.aio.models.generate_content.call_args[1]
+        assert call_kwargs.get("model") == custom_model
 
 
 class TestConcurrentRequests:
@@ -311,11 +379,8 @@ class TestConcurrentRequests:
         """Testa múltiplas transcrições simultâneas."""
         import asyncio
 
-        mock_client = MagicMock()
-        mock_response = MagicMock()
-        mock_response.text = "Transcrição de áudio"
-
-        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+        mock_gemini_audio_client_instance = GeminiAudioClient(api_key=Config.GEMINI_API_KEY)
+        mock_gemini_audio_client_instance.client.aio.models.generate_content = AsyncMock(return_value=MagicMock(text="Transcrição de áudio"))
 
         # Criar múltiplos arquivos de áudio mock
         audio_files = []
@@ -326,38 +391,55 @@ class TestConcurrentRequests:
             mock_audio.read = AsyncMock(return_value=f"audio data {i}".encode())
             audio_files.append(mock_audio)
 
-        with patch('src.api_client.gemini_audio_client.gemini_client', mock_client):
-            # Executar transcrições em paralelo
-            tasks = [transcribe_audio(audio) for audio in audio_files]
-            results = await asyncio.gather(*tasks)
+        # Executar transcrições em paralelo
+        tasks = [mock_gemini_audio_client_instance.transcribe_audio(audio) for audio in audio_files]
+        results = await asyncio.gather(*tasks)
 
-            # Verificar que todas as transcrições foram bem-sucedidas
-            assert len(results) == 5
-            assert all(result == "Transcrição de áudio" for result in results)
+        # Verificar que todas as transcrições foram bem-sucedidas
+        assert len(results) == 5
+        assert all(result == "Transcrição de áudio" for result in results)
 
     @pytest.mark.asyncio
-    @patch('src.api_client.gemini_api_client.types.GenerationConfig')
+    @patch('src.api_client.gemini_api_client.types.GenerateContentConfig')
     async def test_multiple_concurrent_message_processing(self, mock_gen_config, mock_env_with_api_key):
         """Testa múltiplos processamentos de mensagem simultâneos."""
         import asyncio
 
-        mock_client = MagicMock()
-        mock_response = MagicMock()
-        mock_response.parsed = SearchParamsSchema(
-            intent="search_service",
-            search_params=SearchParamsData(client_name="Test")
-        )
+        mock_gemini_api_client_instance = MagicMock(spec=GeminiAPIClient)
+        mock_db = AsyncMock(spec=AsyncSession)
 
-        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+        mock_client_instance = MagicMock(spec=Client)
+        mock_client_instance.id = 1
+        mock_client_instance.name = "Test"
 
-        with patch('src.api_client.gemini_api_client.gemini_client', mock_client):
-            messages = [f"Buscar serviço {i}" for i in range(5)]
+        mock_car_instance = MagicMock(spec=Car)
+        mock_car_instance.id = 1
+        mock_car_instance.brand = "Brand"
+        mock_car_instance.model = "Model"
+        mock_car_instance.owner = mock_client_instance
 
-            # Processar mensagens em paralelo
-            tasks = [process_user_message(msg) for msg in messages]
-            results = await asyncio.gather(*tasks)
+        mock_service_record_instance = MagicMock(spec=ServiceRecord)
+        mock_service_record_instance.id = 1
+        mock_service_record_instance.servico = "Service"
+        mock_service_record_instance.date = datetime.now()
+        mock_service_record_instance.valor = 100.00
+        mock_service_record_instance.observations = ""
+        mock_service_record_instance.car = mock_car_instance
 
-            # Verificar que todos os processamentos foram bem-sucedidos
-            assert len(results) == 5
-            assert all(error is None for _, error in results)
-            assert all(result.intent == "search_service" for result, _ in results)
+        mock_scalar_result_service_records = MagicMock()
+        mock_scalar_result_service_records.all.return_value = [mock_service_record_instance]
+
+        mock_result_execute = MagicMock()
+        mock_result_execute.scalars.return_value = mock_scalar_result_service_records
+
+        mock_db.execute.return_value = mock_result_execute
+
+        messages = [f"Buscar serviço {i}" for i in range(5)]
+
+        # Processar mensagens em paralelo
+        tasks = [_process_and_handle_intent(msg, mock_db, mock_gemini_api_client_instance) for msg in messages]
+        results = await asyncio.gather(*tasks)
+
+        # Verificar que todos os processamentos foram bem-sucedidos
+        assert len(results) == 5
+        assert all(result.intent == "search_service" for result in results)

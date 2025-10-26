@@ -16,13 +16,13 @@ async def create_client(client_data: ClientCreate, db: AsyncSession = Depends(ge
     db.add(db_client)
     await db.commit()
     await db.refresh(db_client)
-    return db_client
+    return ClientResponse.model_validate(db_client)
 
 @router.get("/api/clients", response_model=List[ClientResponse])
 async def get_clients(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Client).order_by(Client.name))
     clients = result.scalars().all()
-    return clients
+    return [ClientResponse.model_validate(client) for client in clients]
 
 @router.get("/api/clients/{client_id}/cars", response_model=List[CarResponse])
 async def get_cars_by_client(client_id: int, db: AsyncSession = Depends(get_db)):
@@ -30,7 +30,7 @@ async def get_cars_by_client(client_id: int, db: AsyncSession = Depends(get_db))
     cars = result.scalars().all()
     if not cars:
         raise HTTPException(status_code=404, detail="No cars found for this client")
-    return cars
+    return [CarResponse.model_validate(car) for car in cars]
 
 # Car Endpoints
 @router.post("/api/cars", response_model=CarResponse, status_code=status.HTTP_201_CREATED)
@@ -44,13 +44,13 @@ async def create_car(car_data: CarCreate, db: AsyncSession = Depends(get_db)):
     db.add(db_car)
     await db.commit()
     await db.refresh(db_car)
-    return db_car
+    return CarResponse.model_validate(db_car)
 
 @router.get("/api/cars", response_model=List[CarResponse])
 async def get_cars(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Car).order_by(Car.brand, Car.model))
     cars = result.scalars().all()
-    return cars
+    return [CarResponse.model_validate(car) for car in cars]
 
 @router.get("/api/cars/{car_id}/service_records", response_model=List[ServiceRecordResponse])
 async def get_service_records_by_car(car_id: int, db: AsyncSession = Depends(get_db)):
@@ -58,7 +58,7 @@ async def get_service_records_by_car(car_id: int, db: AsyncSession = Depends(get
     service_records = result.scalars().all()
     if not service_records:
         raise HTTPException(status_code=404, detail="No service records found for this car")
-    return service_records
+    return [ServiceRecordResponse.model_validate(record) for record in service_records]
 
 # ServiceRecord Endpoints
 @router.post("/api/services", response_model=ServiceRecordResponse, status_code=status.HTTP_201_CREATED)
@@ -78,20 +78,20 @@ async def create_service(service_data: ServiceRecordCreate, db: AsyncSession = D
     db.add(db_service_record)
     await db.commit()
     await db.refresh(db_service_record)
-    return db_service_record
+    return ServiceRecordResponse.model_validate(db_service_record)
 
 @router.get("/api/services", response_model=List[ServiceRecordResponse])
 async def get_services(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(ServiceRecord).order_by(ServiceRecord.created_at.desc()))
     service_records = result.scalars().all()
-    return service_records
+    return [ServiceRecordResponse.model_validate(record) for record in service_records]
 
 @router.get("/api/services/{service_id}", response_model=ServiceRecordResponse)
 async def get_service_record(service_id: int, db: AsyncSession = Depends(get_db)):
     service_record = await db.get(ServiceRecord, service_id)
     if not service_record:
         raise HTTPException(status_code=404, detail="Service record not found")
-    return service_record
+    return ServiceRecordResponse.model_validate(service_record)
 
 @router.put("/api/services/{service_id}", response_model=ServiceRecordResponse)
 async def update_service_record(service_id: int, service_data: ServiceRecordCreate, db: AsyncSession = Depends(get_db)):
@@ -110,7 +110,7 @@ async def update_service_record(service_id: int, service_data: ServiceRecordCrea
 
     await db.commit()
     await db.refresh(db_service_record)
-    return db_service_record
+    return ServiceRecordResponse.model_validate(db_service_record)
 
 @router.delete("/api/services/{service_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_service_record(service_id: int, db: AsyncSession = Depends(get_db)):
